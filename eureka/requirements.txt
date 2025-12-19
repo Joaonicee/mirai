@@ -1,0 +1,15 @@
+# EUREKA - Dependências
+# pip install -r requirements.txt
+
+# Captura de tela ultra rápida
+mss>=9.0.0
+
+# Processamento de imagem
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Modelo YOLO (só necessário se TEST_MODE = False)
+# ultralytics>=8.0.0
+
+# Para GPU CUDA (opcional, mas recomendado):
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118

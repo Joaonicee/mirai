@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EUREKA - Teste de Detecção</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        h1 {
+            color: #fff;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+        
+        .info {
+            color: #aaa;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .arena {
+            position: relative;
+            width: 90vw;
+            height: 70vh;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .target {
+            position: absolute;
+            width: 60px;
+            height: 100px;
+            background: linear-gradient(180deg, #ff4444 0%, #cc0000 100%);
+            border-radius: 30px 30px 15px 15px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+        
+        .target::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            background: #ff6666;
+            border-radius: 50%;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        
+        .target:hover {
+            transform: scale(1.1);
+        }
+        
+        .target.hit {
+            animation: hit 0.3s ease-out;
+            background: linear-gradient(180deg, #44ff44 0%, #00cc00 100%);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+        
+        @keyframes hit {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        
+        .score {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 24px;
+            background: rgba(0,0,0,0.5);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            color: #888;
+            font-size: 14px;
+        }
+        
+        .speed-control {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 10px;
+            color: #fff;
+        }
+        
+        .speed-control input {
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 EUREKA - Área de Teste</h1>
+    <p class="info">
+        Os alvos vermelhos serão detectados pelo sistema.<br>
+        Ajuste a velocidade e veja o aim em ação!
+    </p>
+    
+    <div class="arena" id="arena"></div>
+    
+    <div class="score">
+        Hits: <span id="hits">0</span>
+    </div>
+    
+    <div class="speed-control">
+        <label>Velocidade dos Alvos:</label><br>
+        <input type="range" id="speed" min="0" max="10" value="3">
+        <span id="speedValue">3</span>
+    </div>
+    
+    <div class="controls">
+        Clique nos alvos ou use o EUREKA com botão direito do mouse
+    </div>
+    
+    <script>
+        const arena = document.getElementById('arena');
+        const hitsDisplay = document.getElementById('hits');
+        const speedSlider = document.getElementById('speed');
+        const speedValue = document.getElementById('speedValue');
+        
+        let hits = 0;
+        let targets = [];
+        let speed = 3;
+        
+        speedSlider.addEventListener('input', (e) => {
+            speed = parseInt(e.target.value);
+            speedValue.textContent = speed;
+        });
+        
+        class Target {
+            constructor() {
+                this.element = document.createElement('div');
+                this.element.className = 'target';
+                
+                const rect = arena.getBoundingClientRect();
+                this.x = Math.random() * (rect.width - 60);
+                this.y = Math.random() * (rect.height - 100);
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                
+                this.element.style.left = this.x + 'px';
+                this.element.style.top = this.y + 'px';
+                
+                this.element.addEventListener('click', () => this.hit());
+                
+                arena.appendChild(this.element);
+            }
+            
+            update() {
+                const rect = arena.getBoundingClientRect();
+                
+                this.x += this.vx * (speed / 3);
+                this.y += this.vy * (speed / 3);
+                
+                // Bounce nas bordas
+                if (this.x <= 0 || this.x >= rect.width - 60) {
+                    this.vx *= -1;
+                    this.x = Math.max(0, Math.min(rect.width - 60, this.x));
+                }
+                if (this.y <= 0 || this.y >= rect.height - 100) {
+                    this.vy *= -1;
+                    this.y = Math.max(0, Math.min(rect.height - 100, this.y));
+                }
+                
+                this.element.style.left = this.x + 'px';
+                this.element.style.top = this.y + 'px';
+            }
+            
+            hit() {
+                this.element.classList.add('hit');
+                hits++;
+                hitsDisplay.textContent = hits;
+                
+                setTimeout(() => {
+                    this.element.classList.remove('hit');
+                }, 300);
+                
+                // Reposicionar
+                const rect = arena.getBoundingClientRect();
+                this.x = Math.random() * (rect.width - 60);
+                this.y = Math.random() * (rect.height - 100);
+            }
+        }
+        
+        // Criar alvos
+        for (let i = 0; i < 5; i++) {
+            targets.push(new Target());
+        }
+        
+        // Loop de animação
+        function animate() {
+            targets.forEach(t => t.update());
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
