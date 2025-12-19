@@ -1,0 +1,15 @@
+{
+    "fov_radius": 150,
+    "aim_smoothness": 0.5,
+    "confidence_threshold": 0.5,
+    "target_classes": [],
+    "hotkey_toggle": "insert",
+    "show_overlay": true,
+    "show_fov_circle": true,
+    "aim_part": "center",
+    "head_offset": 0.2,
+    "target_fps": 60,
+    "model_path": "",
+    "aim_speed": 1.0,
+    "max_detections": 10
+}
