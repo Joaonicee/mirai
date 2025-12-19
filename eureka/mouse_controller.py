@@ -126,6 +126,22 @@ class MouseController:
         # Mouse up
         self._send_input(0, 0, MOUSEEVENTF_LEFTUP)
     
+    def mouse_down(self):
+        """Pressiona o botão esquerdo (para modo hold)."""
+        self._send_input(0, 0, MOUSEEVENTF_LEFTDOWN)
+    
+    def mouse_up(self):
+        """Libera o botão esquerdo (para modo hold)."""
+        self._send_input(0, 0, MOUSEEVENTF_LEFTUP)
+    
+    def rapid_click(self, delay=None):
+        """Clique rápido para modo rapid."""
+        if delay is None:
+            delay = Config.TRIGGER_RAPID_DELAY
+        self._send_input(0, 0, MOUSEEVENTF_LEFTDOWN)
+        time.sleep(delay / 2)
+        self._send_input(0, 0, MOUSEEVENTF_LEFTUP)
+    
     def is_key_pressed(self, vk_code):
         """Verifica se uma tecla está pressionada."""
         return self.user32.GetAsyncKeyState(vk_code) & 0x8000 != 0

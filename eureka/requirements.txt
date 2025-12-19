@@ -8,6 +8,12 @@ mss>=9.0.0
 opencv-python>=4.8.0
 numpy>=1.24.0
 
+# ByteTrack para tracking melhorado (opcional - fallback interno disponível)
+# bytetracker
+
+# Input de mouse/teclado
+pydirectinput
+
 # Modelo YOLO (só necessário se TEST_MODE = False)
 # ultralytics>=8.0.0
 

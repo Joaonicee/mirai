@@ -8,6 +8,11 @@
 #   End: Sair do programa
 #   Q/ESC: Fechar overlay
 #
+# MODOS DE TRIGGERBOT:
+#   single: Um clique quando no alvo
+#   rapid: Cliques rápidos enquanto no alvo
+#   hold: Segura o botão enquanto no alvo
+#
 # Para testar SEM modelo:
 #   1. Defina TEST_MODE = True no config.py
 #   2. Abra algo com a cor definida em TEST_COLOR_*
@@ -29,7 +34,64 @@ from screen_capture import ScreenCapture
 from mouse_controller import MouseController
 from detector import get_detector
 from target_selector import TargetSelector
-from overlay import Overlay
+from byte_tracker import ByteTrackWrapper
+from transparent_overlay import get_overlay, OpenCVOverlay
+
+
+class TriggerBot:
+    """Gerencia os modos de disparo do triggerbot."""
+    
+    def __init__(self, mouse):
+        self.mouse = mouse
+        self.mode = Config.TRIGGER_MODE
+        self.is_holding = False
+        self.last_rapid_time = 0
+        self.last_single_shot = False  # Para evitar múltiplos disparos no modo single
+    
+    def update(self, on_target, current_time):
+        """
+        Atualiza o estado do triggerbot.
+        
+        Args:
+            on_target: True se o cursor está sobre o alvo
+            current_time: Tempo atual
+        """
+        if not Config.TRIGGER_ENABLED:
+            return
+        
+        if on_target:
+            if self.mode == "hold":
+                # Modo hold: segura o botão enquanto no alvo
+                if not self.is_holding:
+                    self.mouse.mouse_down()
+                    self.is_holding = True
+            
+            elif self.mode == "rapid":
+                # Modo rapid: cliques rápidos
+                if current_time - self.last_rapid_time >= Config.TRIGGER_RAPID_DELAY:
+                    self.mouse.rapid_click()
+                    self.last_rapid_time = current_time
+            
+            elif self.mode == "single":
+                # Modo single: um clique quando entra no alvo
+                if not self.last_single_shot:
+                    self.mouse.click()
+                    self.last_single_shot = True
+        else:
+            # Fora do alvo
+            if self.mode == "hold" and self.is_holding:
+                self.mouse.mouse_up()
+                self.is_holding = False
+            
+            # Reset para permitir novo single shot
+            self.last_single_shot = False
+    
+    def cleanup(self):
+        """Limpa estado ao sair."""
+        if self.is_holding:
+            self.mouse.mouse_up()
+            self.is_holding = False
+
 
 def main():
     print("=" * 50)
@@ -42,7 +104,6 @@ def main():
     screen = ScreenCapture()
     mouse = MouseController()
     detector = get_detector()
-    overlay = Overlay()
     selector = TargetSelector(
         screen.screen_width,
         screen.screen_height,
@@ -50,9 +111,21 @@ def main():
         Config.CAPTURE_HEIGHT
     )
     
+    # ByteTrack para tracking melhorado
+    tracker = ByteTrackWrapper(frame_rate=Config.TARGET_FPS)
+    
+    # Overlay (transparente ou OpenCV)
+    overlay = get_overlay()
+    
+    # TriggerBot com modos
+    triggerbot = TriggerBot(mouse)
+    
     print(f"[*] Resolução: {screen.screen_width}x{screen.screen_height}")
     print(f"[*] Região de captura: {Config.CAPTURE_WIDTH}x{Config.CAPTURE_HEIGHT}")
     print(f"[*] Modo: {'TESTE (cor)' if Config.TEST_MODE else 'YOLO'}")
+    print(f"[*] Triggerbot: {Config.TRIGGER_MODE.upper()}")
+    print(f"[*] ByteTrack: {'Ativo' if Config.ENABLE_BYTETRACK else 'Desativado'}")
+    print(f"[*] Overlay: {'Ativo' if Config.SHOW_OVERLAY else 'Desativado'}")
     print()
     print("[!] Controles:")
     print("    Botão Direito: Ativar aim")
@@ -66,7 +139,7 @@ def main():
     fps = 0
     fps_counter = 0
     fps_timer = time.time()
-    last_trigger_time = 0
+    current_track_id = -1  # ID do track atual para locking
     
     print("[+] Sistema ativo! Segure botão direito para mirar.")
     print()
@@ -98,13 +171,34 @@ def main():
             # Detectar alvos
             detections = detector.detect(frame)
             
+            # Aplicar ByteTrack para tracking
+            tracked_detections = tracker.update(
+                detections,
+                img_info=[Config.CAPTURE_HEIGHT, Config.CAPTURE_WIDTH],
+                img_size=[Config.CAPTURE_HEIGHT, Config.CAPTURE_WIDTH]
+            )
+            
             # Verificar se aim está ativo (botão direito)
             aim_active = enabled and mouse.is_key_pressed(Config.AIM_KEY)
             
-            # Selecionar melhor alvo
-            target = selector.select_best_target(detections) if aim_active else None
+            # Selecionar alvo (preferir manter o mesmo track)
+            target = None
+            if aim_active and tracked_detections:
+                # Tentar manter o mesmo track
+                if current_track_id >= 0:
+                    target = tracker.get_track_by_id(current_track_id)
+                
+                # Se perdeu o track, selecionar novo
+                if target is None:
+                    # Converter tracked para format esperado pelo selector
+                    target = selector.select_best_target(tracked_detections)
+                    if target:
+                        current_track_id = target.track_id if hasattr(target, 'track_id') else -1
+            else:
+                current_track_id = -1
             
             # Mover mouse para alvo
+            on_target = False
             if target and aim_active:
                 dx, dy = selector.get_aim_offset(target)
                 mouse_x, mouse_y = mouse.get_position()
@@ -118,19 +212,21 @@ def main():
                     target_screen_x, target_screen_y,
                     mouse_x, mouse_y
                 )
-                
-                # Triggerbot - atirar quando no alvo
-                if on_target and Config.TRIGGER_ENABLED:
-                    if current_time - last_trigger_time > 0.15:  # Cooldown
-                        mouse.click()
-                        last_trigger_time = current_time
+            
+            # Triggerbot
+            if aim_active:
+                triggerbot.update(on_target, current_time)
+            else:
+                triggerbot.update(False, current_time)  # Reset quando não está mirando
             
             # Atualizar overlay
-            overlay.draw(frame, detections, target, fps, aim_active)
-            
-            # Processar teclas do OpenCV
-            if not overlay.process_keys():
-                break
+            if overlay:
+                if isinstance(overlay, OpenCVOverlay):
+                    overlay.update(frame, tracked_detections, target, fps)
+                    if not overlay.process_keys():
+                        break
+                else:
+                    overlay.update(tracked_detections, target)
             
             # Limitar FPS se necessário
             frame_time = time.time() - current_time
@@ -143,9 +239,12 @@ def main():
     
     finally:
         # Cleanup
+        triggerbot.cleanup()
         screen.close()
-        overlay.close()
+        if overlay:
+            overlay.close()
         print("[+] Sistema encerrado.")
+
 
 if __name__ == "__main__":
     main()
