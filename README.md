@@ -1,9 +1,10 @@
 ## Disclaimer
+This repository contains research code intended solely for educational purposes.
 
-MirAi is a proof-of-concept project created strictly for educational and research purposes.
+The software is provided "as is", without warranty of any kind.
+The author is not responsible for misuse, including but not limited to:
+- Cheating in online games
+- Violations of terms of service
+- Account bans or penalties
 
-It is intended to demonstrate computer vision and AI techniques only.
-The author does not encourage or support cheating, hacking, or violating the terms of service of any game or platform.
-
-Any misuse of this software is solely the responsibility of the end user.
-The author assumes no liability for damages, bans, or legal issues resulting from its use.
+Use at your own risk.
