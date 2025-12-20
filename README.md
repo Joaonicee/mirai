@@ -8,3 +8,7 @@ The author is not responsible for misuse, including but not limited to:
 - Account bans or penalties
 
 Use at your own risk.
+
+MirAi does not provide pre-trained models for any commercial game.
+Users are responsible for collecting data and training their own models,
+in compliance with the terms of service of the platforms they use.
