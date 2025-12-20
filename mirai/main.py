@@ -56,9 +56,20 @@ class MirAiApp:
         self._setup_hotkey()
     
     def _setup_hotkey(self) -> None:
-        """Setup the toggle hotkey."""
-        hotkey = self.config.get('hotkey_toggle', 'insert')
-        keyboard.on_press_key(hotkey, lambda _: self._toggle_aimbot())
+        """Setup the toggle hotkeys."""
+        # Aimbot toggle
+        aim_hotkey = self.config.get('hotkey_toggle', 'insert')
+        try:
+            keyboard.on_press_key(aim_hotkey, lambda _: self._toggle_aimbot())
+        except Exception as e:
+            print(f"[Error] Failed to bind aimbot hotkey {aim_hotkey}: {e}")
+
+        # Triggerbot toggle
+        trig_hotkey = self.config.get('hotkey_triggerbot', 'end')
+        try:
+            keyboard.on_press_key(trig_hotkey, lambda _: self._toggle_triggerbot())
+        except Exception as e:
+            print(f"[Error] Failed to bind triggerbot hotkey {trig_hotkey}: {e}")
     
     def _toggle_aimbot(self) -> None:
         """Toggle aimbot on/off."""
@@ -68,6 +79,27 @@ class MirAiApp:
         # Update UI (thread-safe)
         if self.window:
             self.window.after(0, lambda: self.window.set_aimbot_status(self.aimbot_active))
+
+    def _toggle_triggerbot(self) -> None:
+        """Toggle triggerbot on/off."""
+        new_state = not self.config.triggerbot_enabled
+        self.config.triggerbot_enabled = new_state
+        print(f"[MirAi] Triggerbot {'ON' if new_state else 'OFF'}")
+        
+        # Update UI (thread-safe)
+        if self.window:
+            # We need to update the variable in SettingsPanel if possible, 
+            # or just rely on the ConfigManager update which might propagate if looped back.
+            # But SettingsPanel doesn't listen to ConfigManager changes automatically.
+            # We should manually update the switch variable in SettingsPanel.
+            self.window.after(0, lambda: self.window.settings_panel.trigger_enabled_var.set(new_state))
+            # Also update the triggerbot instance
+            self.triggerbot.update_config(
+                new_state,
+                self.config.triggerbot_mode,
+                self.config.triggerbot_delay,
+                self.config.triggerbot_interval
+            )
     
     def _on_setting_changed(self, key: str, value) -> None:
         """Handle setting changes from UI."""
@@ -234,6 +266,9 @@ class MirAiApp:
         
         if self.aimbot_active:
             self.triggerbot.update_state(is_on_target)
+        # Also run triggerbot if enabled independently
+        elif self.config.triggerbot_enabled:
+             self.triggerbot.update_state(is_on_target)
     
     def _update_fps_display(self) -> None:
         """Periodically update FPS display in UI."""

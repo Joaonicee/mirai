@@ -233,6 +233,22 @@ class ConfigManager:
     @triggerbot_interval.setter
     def triggerbot_interval(self, value: float) -> None:
         self.set('triggerbot_interval', max(0.01, min(1.0, value)))
+        
+    @property
+    def triggerbot_magnet(self) -> bool:
+        return self._config.get('triggerbot_magnet', True)
+
+    @triggerbot_magnet.setter
+    def triggerbot_magnet(self, value: bool) -> None:
+        self.set('triggerbot_magnet', value)
+
+    @property
+    def hotkey_triggerbot(self) -> str:
+        return self._config.get('hotkey_triggerbot', 'end')
+        
+    @hotkey_triggerbot.setter
+    def hotkey_triggerbot(self, value: str) -> None:
+        self.set('hotkey_triggerbot', value)
     
     def to_dict(self) -> Dict[str, Any]:
         """Return a copy of the current configuration."""
